@@ -70,7 +70,7 @@ test "buffer" {
     defer buffer.deinit();
 
     _ = try buffer.write("\nhello {s}!\n", .{"world"});
-    _ = try buffer.write("namaste {s}!\n", .{"india"});
+    _ = try buffer.write("namaste {s},\n{s}!\n", .{"india", "pune"});
     _ = try buffer.write("namaskar {s}!\n", .{"pune"});
 
     std.debug.print("buffer: {s}\n", .{try buffer.getWritten()});
