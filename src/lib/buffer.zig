@@ -84,7 +84,7 @@ pub fn deinit(this: *Buffer) void {
 }
 
 test "json" {
-    var buffer = try Buffer.init(std.testing.allocator);
+    var buffer =  Buffer.init(std.testing.allocator);
     defer buffer.deinit();
 
     const p = .{ .name = "hello", .age = 10 };
@@ -94,7 +94,7 @@ test "json" {
 }
 
 test "buffer" {
-    var buffer = try Buffer.init(std.testing.allocator);
+    var buffer =  Buffer.init(std.testing.allocator);
     defer buffer.deinit();
 
     _ = try buffer.writer().print("\nhello {s}!\n", .{"world"});
