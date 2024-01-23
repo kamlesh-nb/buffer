@@ -16,8 +16,8 @@ data: ?[]u8,
 allocator: Allocator,
 size: usize = 0,
 
-pub fn init(allocator: Allocator) !Buffer {
-    return Buffer{
+pub fn init(allocator: Allocator) Buffer {
+    return .{
         .data = null,
         .allocator = allocator,
     };
@@ -92,7 +92,7 @@ test "json" {
     try std.json.stringify(p, .{}, buffer.writer());
     std.debug.print("buffer: \n{s}\n", .{buffer.str()});
 }
- 
+
 test "buffer" {
     var buffer = try Buffer.init(std.testing.allocator);
     defer buffer.deinit();
