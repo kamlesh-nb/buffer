@@ -4,10 +4,13 @@ const Allocator = mem.Allocator;
 
 const Buffer = @This();
 
-pub const Error = error{
+pub const BufferError = error{
     OutOfMemory,
     InvalidRange,
 };
+
+pub const Reader = std.io.Reader(*@This(), BufferError, read);
+pub const Writer = std.io.Writer(*@This(), BufferError, write);
 
 data: ?[]u8,
 allocator: Allocator,
@@ -20,23 +23,28 @@ pub fn init(allocator: Allocator) !Buffer {
     };
 }
 
-fn allocate(self: *Buffer, bytes: usize) Error!void {
+pub fn reader(self: *Buffer) Reader {
+    return .{ .context = self };
+}
+
+pub fn writer(self: *Buffer) Writer {
+    return .{ .context = self };
+}
+
+fn allocate(self: *Buffer, bytes: usize) BufferError!void {
     if (self.data) |buffer| {
         if (bytes < self.size) self.size = bytes;
         self.data = self.allocator.realloc(buffer, bytes) catch {
-            return Error.OutOfMemory;
+            return BufferError.OutOfMemory;
         };
     } else {
         self.data = self.allocator.alloc(u8, bytes) catch {
-            return Error.OutOfMemory;
+            return BufferError.OutOfMemory;
         };
     }
 }
 
-pub fn write(this: *Buffer, comptime fmt: []const u8, args: anytype) !usize {
-    var buf: [1024]u8 = undefined;
-    const bytes = try std.fmt.bufPrint(&buf, fmt, args);
-
+pub fn write(this: *Buffer, bytes: []const u8) !usize {
     if (this.data) |buffer| {
         if (this.size + bytes.len > buffer.len) {
             try this.allocate((this.size + bytes.len) * 2);
@@ -55,8 +63,18 @@ pub fn write(this: *Buffer, comptime fmt: []const u8, args: anytype) !usize {
     return bytes.len;
 }
 
-pub fn getWritten(this: *Buffer) ![]u8 {
-    return this.data.?[0..this.size];
+pub fn read(self: *Buffer, buf: []u8) !usize {
+    if (self.data) |buffer| {
+        @memcpy(buf[0..self.size], buffer[0..self.size]);
+    }
+    return self.size;
+}
+
+pub fn str(self: *Buffer) []u8 {
+    if (self.data) |buffer| {
+        return buffer[0..self.size];
+    }
+    return "";
 }
 
 pub fn deinit(this: *Buffer) void {
@@ -65,13 +83,28 @@ pub fn deinit(this: *Buffer) void {
     }
 }
 
+test "json" {
+    var buffer = try Buffer.init(std.testing.allocator);
+    defer buffer.deinit();
+
+    const p = .{ .name = "hello", .age = 10 };
+
+    try std.json.stringify(p, .{}, buffer.writer());
+    std.debug.print("buffer: \n{s}\n", .{buffer.str()});
+}
+ 
 test "buffer" {
     var buffer = try Buffer.init(std.testing.allocator);
     defer buffer.deinit();
 
-    _ = try buffer.write("\nhello {s}!\n", .{"world"});
-    _ = try buffer.write("namaste {s},\n{s}!\n", .{"india", "pune"});
-    _ = try buffer.write("namaskar {s}!\n", .{"pune"});
+    _ = try buffer.writer().print("\nhello {s}!\n", .{"world"});
+    _ = try buffer.writer().print("namaste {s},\n{s}!\n", .{ "india", "pune" });
+    _ = try buffer.writer().print("namaskar {s}!\n", .{"pune"});
 
-    std.debug.print("buffer: {s}\n", .{try buffer.getWritten()});
+    _ = try buffer.writer().print("hello {s} once {s}", .{ "world", "again" });
+    var buff: [32756]u8 = undefined;
+
+    const l = try buffer.reader().readAtLeast(&buff, buffer.size);
+    _ = l;
+    std.debug.print("buffer: {s}\n", .{buffer.str()});
 }
