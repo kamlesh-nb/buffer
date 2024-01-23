@@ -1,1 +1,1 @@
-pub const Buffer = @import("buffer..zig");
+pub const Buffer = @import("lib/buffer.zig");
